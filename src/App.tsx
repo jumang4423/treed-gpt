@@ -7,6 +7,7 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   MiniMap,
+  EdgeTypes,
   Background,
   Panel,
 } from "reactflow";
@@ -26,6 +27,7 @@ import FormControl from "@mui/material/FormControl";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import Select, { SelectChangeEvent } from "@mui/material/Select";
 import SendIcon from "@mui/icons-material/Send";
+import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
 
 type OpenAIMessage = {
@@ -40,6 +42,10 @@ type settingsType = {
   };
   systemPrompt: string;
   historyMaxLen: number;
+};
+
+const edgeTypes: EdgeTypes = {
+  userQuestion: UserQuestionEdge,
 };
 
 const initSettingsObj = JSON.stringify({
@@ -202,7 +208,9 @@ const App = () => {
       source: selectedNodeId,
       target: newNode.id,
       label: e.target.value,
+      data: { label: e.target.value },
       animated: true,
+      type: "userQuestion",
     };
 
     setEdges((eds) => addEdge(newEdge, eds));
@@ -267,7 +275,6 @@ const App = () => {
       style={{
         width: "100vw",
         height: "100vh",
-        display: "flex",
         fontFamily: "Iosevka",
         overflow: "hidden",
       }}
@@ -276,127 +283,124 @@ const App = () => {
         href="https://pvinis.github.io/iosevka-webfont/3.4.1/iosevka.css"
         rel="stylesheet"
       />
-      <div style={{ width: "100vw", height: "100vh" }}>
-        <ReactFlow
-          fitView
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          panOnScroll
-          selectionOnDrag
-        >
-          <MiniMap zoomable pannable />
-          <Background variant="dots" />
-          <Panel position="top-left" style={{ paddingTop: 4 }}>
-            <Button
-              variant="outlined"
-              style={{
-                width: "40px",
-                height: "40px",
-              }}
-              onClick={() => setIsHistoryDrawerOpen(true)}
-            >
-              <HistoryIcon />
-            </Button>
-            <div style={{ marginTop: 8 }}>
-              {settingsObj.OpenAI.apiKey === "" && (
-                <div style={{ color: "#ffa000" }}>
-                  (error) OpenAI API key is not set.
-                </div>
-              )}
-              {selectedNodeId === null && (
-                <div style={{ color: "#aBa000", marginTop: 2 }}>
-                  (hint) to ask a question to AI, click a node.
-                </div>
-              )}
-            </div>
-          </Panel>
-          <Panel
-            position="bottom-left"
+      <ReactFlow
+        fitView
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        edgeTypes={edgeTypes}
+        panOnScroll
+        selectionOnDrag
+      >
+        <MiniMap zoomable pannable />
+        <Background variant="dots" />
+        <Panel position="top-left" style={{ paddingTop: 4 }}>
+          <Button
+            variant="outlined"
             style={{
-              height: isThinking ? 100 : 210,
-              margin: 0,
-              marginBottom: 8,
-              padding: 8,
-              width: 640,
-              backgroundColor: "white",
-              borderRadius: 10,
+              width: "40px",
+              height: "40px",
             }}
+            onClick={() => setIsHistoryDrawerOpen(true)}
           >
-            <div style={{ margin: 10, alignSelf: "center" }}>
-              💫 TREED-GPT by{" "}
-              <a
-                style={{ color: "green", textDecoration: "none" }}
-                href="https://soundcloud.com/jumang4423"
-                target="_blank"
-              >
-                jumango
-              </a>
-            </div>
-            {!isThinking && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  margin: 4,
+            <HistoryIcon />
+          </Button>
+          <div style={{ marginTop: 8 }}>
+            {settingsObj.OpenAI.apiKey === "" && (
+              <div style={{ color: "#ffa000" }}>
+                (error) OpenAI API key is not set.
+              </div>
+            )}
+            {selectedNodeId === null && (
+              <div style={{ color: "#aBa000", marginTop: 2 }}>
+                (hint) to ask a question to AI, click a node.
+              </div>
+            )}
+          </div>
+        </Panel>
+        <Panel
+          position="bottom-left"
+          style={{
+            height: isThinking ? 100 : 210,
+            margin: 0,
+            marginBottom: 8,
+            padding: 8,
+            width: 640,
+            backgroundColor: "white",
+            borderRadius: 10,
+          }}
+        >
+          <div style={{ margin: 10, alignSelf: "center" }}>
+            💫 TREED-GPT by{" "}
+            <a
+              style={{ color: "green", textDecoration: "none" }}
+              href="https://soundcloud.com/jumang4423"
+              target="_blank"
+            >
+              jumango
+            </a>
+          </div>
+          {!isThinking && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                margin: 4,
+              }}
+            >
+              <TextField
+                placeholder="(shift or cmd) + enter to send"
+                style={{}}
+                value={promptStr}
+                onChange={(e) => setPromptStr(e.target.value)}
+                multiline
+                rows={3}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "Enter" &&
+                    (e.altKey || e.ctrlKey || e.shiftKey || e.metaKey)
+                  ) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
                 }}
-              >
-                <TextField
-                  placeholder="(shift or cmd) + enter to send"
-                  style={{}}
-                  value={promptStr}
-                  onChange={(e) => setPromptStr(e.target.value)}
-                  multiline
-                  rows={3}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      (e.altKey || e.ctrlKey || e.shiftKey || e.metaKey)
-                    ) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
+              />
+              <div style={{ display: "flex", flexDirection: "row" }}>
+                <Button
+                  disabled={!selectedNodeId || promptStr === ""}
+                  variant="contained"
+                  style={{
+                    margin: "16px 0px",
+                    width: "80px",
+                    height: "40px",
                   }}
-                />
-                <div style={{ display: "flex", flexDirection: "row" }}>
-                  <Button
-                    disabled={!selectedNodeId || promptStr === ""}
-                    variant="contained"
-                    style={{
-                      margin: "16px 0px",
-                      width: "80px",
-                      height: "40px",
-                    }}
-                    onClick={() =>
-                      handleSubmit({ target: { value: promptStr } })
-                    }
-                  >
-                    <SendIcon />
-                  </Button>
-                  <Button
-                    style={{
-                      margin: "16px 0px",
-                      width: "40px",
-                      height: "40px",
-                    }}
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    <SettingsIcon />
-                  </Button>
-                </div>
+                  onClick={() => handleSubmit({ target: { value: promptStr } })}
+                >
+                  <SendIcon />
+                </Button>
+                <Button
+                  style={{
+                    margin: "16px 0px",
+                    width: "40px",
+                    height: "40px",
+                  }}
+                  onClick={() => setIsModalOpen(true)}
+                >
+                  <SettingsIcon />
+                </Button>
               </div>
-            )}
-            {isThinking && (
-              <div style={{ margin: 8 }}>
-                <div style={{ margin: 8 }}> thinking... </div>
-                <LinearProgress color="success" />
-              </div>
-            )}
-          </Panel>
-        </ReactFlow>
-      </div>
+            </div>
+          )}
+          {isThinking && (
+            <div style={{ margin: 8 }}>
+              <div style={{ margin: 8 }}> thinking... </div>
+              <LinearProgress color="success" />
+            </div>
+          )}
+        </Panel>
+      </ReactFlow>
       <GenericModal
         open={isModalOpen}
         handleClose={() => setIsModalOpen(false)}
