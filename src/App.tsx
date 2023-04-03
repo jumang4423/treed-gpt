@@ -15,17 +15,12 @@ import GenericModal from "./components/GenericModal";
 import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import Divider from "@mui/material/Divider";
 import HistoryIcon from "@mui/icons-material/History";
 import LinearProgress from "@mui/material/LinearProgress";
 import SettingsIcon from "@mui/icons-material/Settings";
-import InputLabel from "@mui/material/InputLabel";
 import Drawer from "@mui/material/Drawer";
 import MenuItem from "@mui/material/MenuItem";
-import FormControl from "@mui/material/FormControl";
-import ManageSearchIcon from "@mui/icons-material/ManageSearch";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
+import Select from "@mui/material/Select";
 import SendIcon from "@mui/icons-material/Send";
 import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
@@ -472,12 +467,35 @@ const App = () => {
             <div
               style={{
                 margin: 8,
-                backgroundColor: "#fff0f0",
+                marginBottom: 0,
+                backgroundColor: "#eee",
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
                 height: "32px",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                setIsHistoryDrawerOpen(false);
+                setEdges([]);
+                setNodes(initialNodes);
+                setTreeId(gen16lenId());
+              }}
+            >
+              <div style={{ margin: 4, fontSize: "14px" }}>+ new tree</div>
+            </div>
+
+            <div
+              style={{
+                margin: 8,
+                backgroundColor: "#ffe0e0",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "32px",
+                cursor: "pointer",
               }}
               onClick={() => {
                 // ask really want to clear
@@ -490,13 +508,27 @@ const App = () => {
               <div style={{ margin: 4, fontSize: "14px" }}>remove all</div>
             </div>
 
+            <div
+              style={{
+                fontSize: "14px",
+                margin: 0,
+                height: 16,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              --= [] =--
+            </div>
+
             <div>
               {(JSON.parse(localStorage.getItem("treeHistory")) ?? []).map(
                 (item) => (
                   <div
                     style={{
                       margin: 8,
-                      backgroundColor: "#f0f0f0",
+                      backgroundColor: "#eee",
+                      cursor: "pointer",
                     }}
                     onClick={() => {
                       setNodes(item.nodes);
