@@ -523,8 +523,9 @@ const App = () => {
 
             <div>
               {(JSON.parse(localStorage.getItem("treeHistory")) ?? []).map(
-                (item) => (
+                (item, i) => (
                   <div
+                    key={i}
                     style={{
                       margin: 8,
                       backgroundColor: "#eee",

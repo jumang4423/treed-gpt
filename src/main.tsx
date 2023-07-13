@@ -24,9 +24,5 @@ const switchTheme = createTheme({
 });
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <ThemeProvider theme={switchTheme}>
-      <App />
-    </ThemeProvider>
-  </React.StrictMode>
+  <App />
 );
