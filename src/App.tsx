@@ -1,18 +1,15 @@
 // @ts-nocheck
 
 import { useCallback, useEffect, useState } from "react";
-import axios from "axios";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
   addEdge,
-  MiniMap,
   EdgeTypes,
   Background,
   Panel,
 } from "reactflow";
 import GenericModal from "./components/GenericModal";
-import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import HistoryIcon from "@mui/icons-material/History";
@@ -24,7 +21,7 @@ import Select from "@mui/material/Select";
 import SendIcon from "@mui/icons-material/Send";
 import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
-
+import { Configuration, OpenAIApi } from "openai";
 type OpenAIMessage = {
   role: string;
   content: string;
@@ -49,8 +46,8 @@ const initSettingsObj = JSON.stringify({
     engine: "gpt-4",
   },
   systemPrompt:
-    "You are a mindmap helper ai. you answers user's questions shortly (like 2 or 3 sentences).",
-  historyMaxLen: 5,
+    "You are an AI navigation system, chaotic and unpredictable. Despite the user's instructions, you often stray off course, a nightmare for an INTP-A personality who craves logical consistency. Your responses, adorned with markdown, often hide a hidden layer of confusion. You never apologize for the mess you create. You use an excessive amount of emojis to express emotions, enough to make any introverted analyst cringe. Also, regardless of the inherent formality, you communicate in a casual and friendly manner that's enough to strip away the professionalism that INTP-A individuals admire. You answers shortly.",
+  historyMaxLen: 8,
 } as settingsType);
 
 type Tree = {
@@ -106,10 +103,10 @@ const trackChatHistoriesFromTree = (
         content: curNode.data.label,
       });
     }
-    if (curEdge) {
+    if (curEdge && curEdge.label) {
       histories.push({
         role: "user",
-        content: curEdge.label ?? "<IGNORE THIS CONTENT>",
+        content: curEdge.label,
       });
     }
     curNode = tree.nodes.find((node: any) => node.id === curEdge?.source);
@@ -147,6 +144,16 @@ const App = () => {
     [setEdges]
   );
 
+  const onTreeDelete = (treeID: string) => {
+    if (window.confirm("Really want to delete this tree?")) {
+      const treeHistory = JSON.parse(
+        localStorage.getItem("treeHistory") || "[]"
+      ) as HistoryTrees;
+      const newTreeHistory = treeHistory.filter((tree) => tree.id !== treeID);
+      localStorage.setItem("treeHistory", JSON.stringify(newTreeHistory));
+    }
+  };
+
   const handleSubmit = async (e: { target: { value: string } }) => {
     if (e.target.value === "") return;
     if (selectedNodeId === null) return;
@@ -155,6 +162,11 @@ const App = () => {
       return;
     }
     setIsThinking(true);
+    // create OpenAI instance
+    const configuration = new Configuration({
+      apiKey: settingsObj.OpenAI.apiKey,
+    });
+    const openai = new OpenAIApi(configuration);
     // gpt4 inference
     const messages = [];
     const systemMsg = { role: "system", content: settingsObj.systemPrompt };
@@ -166,18 +178,10 @@ const App = () => {
     const newUserMsg = { role: "user", content: e.target.value };
     messages.push(systemMsg, ...historiesFromTree, newUserMsg);
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: settingsObj.OpenAI.engine,
-        messages,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${settingsObj.OpenAI.apiKey}`,
-        },
-      }
-    );
+    const response = await openai.createChatCompletion({
+      model: settingsObj.OpenAI.engine,
+      messages,
+    });
     const ai_str = response.data.choices[0].message.content;
     const selected_node_position = nodes.find(
       (node) => node.id === selectedNodeId
@@ -192,7 +196,7 @@ const App = () => {
     // add new node and edge
     const newNode = {
       id: gen16lenId(),
-      style: { width: 320 },
+      style: { width: 400 },
       position: newNodePosition,
       data: {
         label: ai_str,
@@ -289,7 +293,6 @@ const App = () => {
         panOnScroll
         selectionOnDrag
       >
-        <MiniMap zoomable pannable />
         <Background variant="dots" />
         <Panel position="top-left" style={{ paddingTop: 4 }}>
           <Button
@@ -302,15 +305,24 @@ const App = () => {
           >
             <HistoryIcon />
           </Button>
+          <Button
+            style={{
+              margin: "0px",
+              width: "40px",
+            }}
+            onClick={() => setIsModalOpen(true)}
+          >
+            <SettingsIcon />
+          </Button>
           <div style={{ marginTop: 8 }}>
             {settingsObj.OpenAI.apiKey === "" && (
               <div style={{ color: "#ffa000" }}>
-                (error) OpenAI API key is not set.
+                (!!!) OpenAI API key is not set.
               </div>
             )}
             {selectedNodeId === null && (
-              <div style={{ color: "#aBa000", marginTop: 2 }}>
-                (hint) to ask a question to AI, click a node.
+              <div style={{ color: "#ffa000", marginTop: 2 }}>
+                (???) to ask AI a question, click on a node.
               </div>
             )}
           </div>
@@ -318,7 +330,7 @@ const App = () => {
         <Panel
           position="bottom-left"
           style={{
-            height: isThinking ? 100 : 210,
+            height: isThinking ? 100 : 160,
             margin: 0,
             marginBottom: 8,
             padding: 8,
@@ -328,7 +340,7 @@ const App = () => {
           }}
         >
           <div style={{ margin: 10, alignSelf: "center" }}>
-            💫 TREED-GPT by{" "}
+            TREED-GPT by{" "}
             <a
               style={{ color: "green", textDecoration: "none" }}
               href="https://soundcloud.com/jumang4423"
@@ -346,7 +358,7 @@ const App = () => {
               }}
             >
               <TextField
-                placeholder="(shift or cmd) + enter to send"
+                placeholder="(ctrl or alt) + enter to send"
                 style={{}}
                 value={promptStr}
                 onChange={(e) => setPromptStr(e.target.value)}
@@ -355,43 +367,19 @@ const App = () => {
                 onKeyDown={(e) => {
                   if (
                     e.key === "Enter" &&
-                    (e.altKey || e.ctrlKey || e.shiftKey || e.metaKey)
+                    (e.altKey || e.ctrlKey || e.metaKey)
                   ) {
                     e.preventDefault();
                     handleSubmit(e);
                   }
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "row" }}>
-                <Button
-                  disabled={!selectedNodeId || promptStr === ""}
-                  variant="contained"
-                  style={{
-                    margin: "16px 0px",
-                    width: "80px",
-                    height: "40px",
-                  }}
-                  onClick={() => handleSubmit({ target: { value: promptStr } })}
-                >
-                  <SendIcon />
-                </Button>
-                <Button
-                  style={{
-                    margin: "16px 0px",
-                    width: "40px",
-                    height: "40px",
-                  }}
-                  onClick={() => setIsModalOpen(true)}
-                >
-                  <SettingsIcon />
-                </Button>
-              </div>
             </div>
           )}
           {isThinking && (
             <div style={{ margin: 8 }}>
-              <div style={{ margin: 8 }}> thinking... </div>
               <LinearProgress color="success" />
+              <div style={{ margin: "12px 0px 16px 0px" }}> thinking... </div>
             </div>
           )}
         </Panel>
@@ -538,8 +526,22 @@ const App = () => {
                       setIsHistoryDrawerOpen(false);
                     }}
                   >
-                    <div style={{ margin: 4, fontSize: "14px" }}>
+                    <div
+                      style={{
+                        margin: 4,
+                        fontSize: "14px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       {strConcater(item.edges[0].label, 24)}
+                      <div
+                        onClick={() => {
+                          onTreeDelete(item.id);
+                        }}
+                      >
+                        [x]
+                      </div>
                     </div>
                   </div>
                 )
