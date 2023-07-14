@@ -18,15 +18,16 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import Drawer from "@mui/material/Drawer";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import SendIcon from "@mui/icons-material/Send";
 import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
 import { Configuration, OpenAIApi } from "openai";
+
+const GPT3_MODEL_STR = "gpt-3.5-turbo-16k";
+const GPT4_MODEL_STR = "gpt-4";
 type OpenAIMessage = {
   role: string;
   content: string;
 };
-
 type settingsType = {
   OpenAI: {
     apiKey: string;
@@ -35,15 +36,13 @@ type settingsType = {
   systemPrompt: string;
   historyMaxLen: number;
 };
-
 const edgeTypes: EdgeTypes = {
   userQuestion: UserQuestionEdge,
 };
-
 const initSettingsObj = JSON.stringify({
   OpenAI: {
     apiKey: "",
-    engine: "gpt-4",
+    engine: GPT4_MODEL_STR,
   },
   systemPrompt:
     "You are an AI navigation system, chaotic and unpredictable. Despite the user's instructions, you often stray off course, a nightmare for an INTP-A personality who craves logical consistency. Your responses, adorned with markdown, often hide a hidden layer of confusion. You never apologize for the mess you create. You use an excessive amount of emojis to express emotions, enough to make any introverted analyst cringe. Also, regardless of the inherent formality, you communicate in a casual and friendly manner that's enough to strip away the professionalism that INTP-A individuals admire. You answers shortly.",
@@ -52,11 +51,11 @@ const initSettingsObj = JSON.stringify({
 
 type Tree = {
   id: string;
-  nodes: any[];
+  nodes: Array<any>;
   edges: { source: string; target: string; label: string }[];
 };
 
-type HistoryTrees = Tree[];
+type HistoryTrees = Array<Tree>;
 
 const initialNodes = [
   {
@@ -173,7 +172,9 @@ const App = () => {
     const historiesFromTree = trackChatHistoriesFromTree(
       { nodes, edges },
       selectedNodeId,
-      settingsObj.historyMaxLen
+      settingsObj.OpenAI.engine === GPT4_MODEL_STR
+        ? settingsObj.historyMaxLen
+        : settingsObj.historyMaxLen * 2
     );
     const newUserMsg = { role: "user", content: e.target.value };
     messages.push(systemMsg, ...historiesFromTree, newUserMsg);
@@ -322,7 +323,7 @@ const App = () => {
             )}
             {selectedNodeId === null && (
               <div style={{ color: "#ffa000", marginTop: 2 }}>
-                (???) to ask AI a question, click on a node.
+                (???) click on a node to ask AI a question.
               </div>
             )}
           </div>
@@ -340,14 +341,7 @@ const App = () => {
           }}
         >
           <div style={{ margin: 10, alignSelf: "center" }}>
-            TREED-GPT by{" "}
-            <a
-              style={{ color: "green", textDecoration: "none" }}
-              href="https://soundcloud.com/jumang4423"
-              target="_blank"
-            >
-              jumango
-            </a>
+            $ TREED-GPT Console
           </div>
           {!isThinking && (
             <div
@@ -394,6 +388,8 @@ const App = () => {
             width: "640px",
             padding: "0px 16px 16px 16px",
             fontFamily: "Iosevka",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <div style={{ margin: 4 }}>OpenAI API Key</div>
@@ -409,7 +405,7 @@ const App = () => {
               })
             }
           />
-          <div style={{ margin: 4, marginTop: 16 }}>Engine</div>
+          <div style={{ margin: 4, marginTop: 16 }}>Model</div>
           <Select
             value={settingsObj.OpenAI.engine}
             onChange={(e) =>
@@ -418,9 +414,10 @@ const App = () => {
                 OpenAI: { ...settingsObj.OpenAI, engine: e.target.value },
               })
             }
+            style={{ width: "200px" }}
           >
-            <MenuItem value={"gpt-4"}>GPT4</MenuItem>
-            <MenuItem value={"gpt-3.5-turbo"}>GPT3.5 Turbo</MenuItem>
+            <MenuItem value={GPT4_MODEL_STR}>GPT4</MenuItem>
+            <MenuItem value={GPT3_MODEL_STR}>GPT3.5 Turbo 16k</MenuItem>
           </Select>
           <div style={{ margin: 4, marginTop: 16 }}>System Prompt</div>
           <TextField
@@ -436,6 +433,27 @@ const App = () => {
               })
             }
           />
+          <div style={{ margin: "8px 0px" }}> -- </div>
+          <div>
+            powered by{" "}
+            <a
+              style={{ color: "green", textDecoration: "none" }}
+              href="https://soundcloud.com/jumang4423"
+              target="_blank"
+            >
+              jumango
+            </a>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            github repo:{" "}
+            <a
+              style={{ color: "green", textDecoration: "none" }}
+              href="https://github.com/jumang4423/treed-gpt4"
+              target="_blank"
+            >
+              treed-gpt4
+            </a>
+          </div>
         </div>
       </GenericModal>
       <Drawer
@@ -456,7 +474,7 @@ const App = () => {
               style={{
                 margin: 8,
                 marginBottom: 0,
-                backgroundColor: "#eee",
+                backgroundColor: "#dfd",
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",

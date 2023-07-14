@@ -985,6 +985,11 @@ escape-string-regexp@^4.0.0:
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-4.0.0.tgz#14ba83a5d373e3d311e5afca29cf5bfad965bf34"
   integrity sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==
 
+eventsource-parser@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/eventsource-parser/-/eventsource-parser-1.0.0.tgz#6332e37fd5512e3c8d9df05773b2bf9e152ccc04"
+  integrity sha512-9jgfSCa3dmEme2ES3mPByGXfgZ87VbP97tng1G2nWwWx6bV2nYxm2AWCrbQjXToSe+yYlqaZNtxffR9IeQr95g==
+
 find-root@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/find-root/-/find-root-1.1.0.tgz#abcfc8ba76f708c42a97b3d685b7e9450bfb9ce4"
@@ -1096,6 +1101,14 @@ object-assign@^4.1.1:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/object-assign/-/object-assign-4.1.1.tgz#2109adc7965887cfc05cbbd442cac8bfbb360863"
   integrity sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==
+
+openai-streams@^6.1.0:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/openai-streams/-/openai-streams-6.1.0.tgz#d9fe8d8f50b90a289588b3f369bbbf3b1587be57"
+  integrity sha512-Nljk3nXmS4YsuU3JRq+RIsd4U7F1jnQjzc8z7I+nOg2tWEZx+pcvU24e5cgtxMvwvCPTfE6oPePGl7uQKIi3Hw==
+  dependencies:
+    eventsource-parser "^1.0.0"
+    yield-stream "^3.0.0"
 
 openai@^3.3.0:
   version "3.3.0"
@@ -1245,6 +1258,11 @@ scheduler@^0.23.0:
   dependencies:
     loose-envify "^1.1.0"
 
+shim-streams@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/shim-streams/-/shim-streams-0.0.2.tgz#816a9faf9bc158cbc57b5593f2d4c3c9087b02e6"
+  integrity sha512-9Otb+FCl13XxRp1nVddtsCbwvB7AEMTjzc3/fixowyzvSVoCzu/VEstblB2SdIDbd61u5D/zpS5u9fGzDdOoZg==
+
 source-map-js@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/source-map-js/-/source-map-js-1.0.2.tgz#adbc361d9c62df380125e7f161f71c826f1e490c"
@@ -1299,10 +1317,23 @@ vite@^4.2.0:
   optionalDependencies:
     fsevents "~2.3.2"
 
+web-streams-polyfill@^3.2.1:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/web-streams-polyfill/-/web-streams-polyfill-3.2.1.tgz#71c2718c52b45fd49dbeee88634b3a60ceab42a6"
+  integrity sha512-e0MO3wdXWKrLbL0DgGnUV7WHVuw9OUvL4hjgnPkIeEvESk74gAITi5G606JtZPp39cd8HA9VQzCIvA49LpPN5Q==
+
 yaml@^1.10.0:
   version "1.10.2"
   resolved "https://registry.yarnpkg.com/yaml/-/yaml-1.10.2.tgz#2301c5ffbf12b467de8da2333a459e29e7920e4b"
   integrity sha512-r3vXyErRCYJ7wg28yvBY5VSoAF8ZvlcW9/BwUzEtUsjvX/DKs24dIkuwjtuprwJJHsbyUbLApepYTR1BN4uHrg==
+
+yield-stream@^3.0.0:
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/yield-stream/-/yield-stream-3.1.0.tgz#7c1f03051e0384753a833975cfad293d6b1f8eaa"
+  integrity sha512-QCw2k88BWQV4uFJ9gLocEzYDk5IPCeSB9RnlF43RfyrQyj2TpQqq1q2/uhOZwM4YNLcWx1FuAq+28vaKSciEnQ==
+  dependencies:
+    shim-streams "^0.0.2"
+    web-streams-polyfill "^3.2.1"
 
 zustand@^4.3.1:
   version "4.3.7"
