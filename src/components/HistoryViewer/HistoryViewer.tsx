@@ -9,8 +9,8 @@ import HistoryViewerGroup from "./HistoryViewerGroup";
 interface Props {
   open: boolean;
   onClose: () => void;
-  setTreeId: (id: string) => void;
-  setGroupId: (id: string) => void;
+  setTreeId: (id: string | undefined) => void;
+  setGroupId: (id: string | undefined) => void;
   onOpenNewGroupModal: () => void;
 }
 

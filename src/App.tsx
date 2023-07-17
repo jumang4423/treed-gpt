@@ -214,7 +214,7 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (!TreeId) return;
+    if (!TreeId || !GroupId) return;
     // find selected Nodes
     const selectedNodes = nodes.filter((n) => n.selected);
     if (selectedNodes.length === 1) {
@@ -236,11 +236,21 @@ const App = () => {
 
   // this will be triggered when GroupId or TreeId, or someone changed the tree.
   useEffect(() => {
-    if (!GroupId || !TreeId) return;
+    if (!GroupId || !TreeId) {
+      setNodes(InitialNodes);
+      setEdges(InitialEdges);
+      return;
+    }
     // hope so
-    const watchingTree: Tree = groupsState[GroupId].trees.find(
+    const watchingTree: Tree = groupsState?.[GroupId]?.trees?.find(
       (tree) => tree.id === TreeId
-    ) as Tree;
+    );
+    if (!watchingTree) {
+      setNodes(InitialNodes);
+      setEdges(InitialEdges);
+      return;
+    }
+
     // with selected field
     const arcTree = onArcTree(watchingTree, selectedNodeId || "");
     setEdges(arcTree.edges);

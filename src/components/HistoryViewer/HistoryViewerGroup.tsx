@@ -23,8 +23,8 @@ const strConcater = (str: string, maxLen: number) => {
 
 interface Props {
   groupId: string;
-  setTreeId: (id: string) => void;
-  setGroupId: (id: string) => void;
+  setTreeId: (id: string | undefined) => void;
+  setGroupId: (id: string | undefined) => void;
   onClose: () => void;
 }
 
@@ -88,7 +88,7 @@ const HistoryViewerGroup = ({
     initObserver();
   }, [groupId]);
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 16 }} key={groupId}>
       <div
         key={groupId}
         style={{
@@ -200,6 +200,8 @@ const HistoryViewerGroup = ({
                   onClick={() => {
                     {
                       if (window.confirm("Are you sure?")) {
+                        setTreeId(undefined);
+                        setGroupId(undefined);
                         onTreeDelete(tree.id);
                       }
                     }
