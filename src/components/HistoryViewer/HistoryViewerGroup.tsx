@@ -21,7 +21,19 @@ const strConcater = (str: string, maxLen: number) => {
   return str;
 };
 
-const HistoryViewerGroup = ({ groupId }: { groupId: string }) => {
+interface Props {
+  groupId: string;
+  setTreeId: (id: string) => void;
+  setGroupId: (id: string) => void;
+  onClose: () => void;
+}
+
+const HistoryViewerGroup = ({
+  groupId,
+  setTreeId,
+  setGroupId,
+  onClose,
+}: Props) => {
   const [groups, setGroups] = useRecoilState(GroupsState);
   const [isNewTreeModalOpen, setIsNewTreeModalOpen] = useState(false);
 
@@ -90,7 +102,29 @@ const HistoryViewerGroup = ({ groupId }: { groupId: string }) => {
       >
         --= [ {groups[groupId]?.name || "fetching..."} ] =--
       </div>
-
+      {!groups[groupId]?.isUserGroup && (
+        <div
+          style={{
+            marginTop: 8,
+            marginLeft: 8,
+            marginRight: 8,
+            backgroundColor: "#eee",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "20px",
+            cursor: "pointer",
+          }}
+          onClick={() => {
+            // copy group id to clipboard
+            navigator.clipboard.writeText(groupId);
+            alert("copied!: " + groupId);
+          }}
+        >
+          <div style={{ margin: 4, fontSize: "14px" }}>copy group id </div>
+        </div>
+      )}
       {!groups[groupId]?.isUserGroup && (
         <div
           style={{
@@ -147,10 +181,9 @@ const HistoryViewerGroup = ({ groupId }: { groupId: string }) => {
               }}
               onClick={() => {
                 {
-                  /* setNodes(item.nodes);
-                     setEdges(item.edges);
-                     setTreeId(item.id);
-                     onClose(); */
+                  setTreeId(tree.id);
+                  setGroupId(groupId);
+                  onClose();
                 }
               }}
             >

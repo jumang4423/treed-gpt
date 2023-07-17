@@ -13,6 +13,7 @@ interface Props {
 
 const NewGroupModal = ({ open, onClose }: Props) => {
   const [groupName, setGroupName] = useState("");
+  const [groupId, setGroupId] = useState("");
   const onNewGroupCreation = async () => {
     // add new group to db
     const newGroupId: string = Gen16lenId();
@@ -35,8 +36,31 @@ const NewGroupModal = ({ open, onClose }: Props) => {
     onClose();
   };
 
+  const onJoinGroup = async (groupId: string) => {
+    // validate the group id
+    const groupRef = ref(Db, `groups/${groupId}`);
+    const groupSnap = await get(groupRef);
+    const group: Group = groupSnap.val();
+    if (!group) {
+      alert("invalid group id");
+      return;
+    }
+    // add group to user groups
+    const userRef = ref(Db, `users/${localStorage.getItem("uid")}`);
+    const userSnap = await get(userRef);
+    const user: User = userSnap.val();
+    user.group_ids = [...(user.group_ids || []), groupId];
+    await set(userRef, user);
+    setGroupId("");
+    onClose();
+  };
+
   return (
-    <GenericModal open={open} handleClose={onClose} title="make a new group">
+    <GenericModal
+      open={open}
+      handleClose={onClose}
+      title="create or join a group"
+    >
       <div
         style={{
           width: "640px",
@@ -46,6 +70,7 @@ const NewGroupModal = ({ open, onClose }: Props) => {
           flexDirection: "column",
         }}
       >
+        <h3 style={{ margin: 4 }}>$ make a new group</h3>
         <div style={{ margin: 4 }}>group name</div>
         <TextField
           placeholder="ex: jumango inc."
@@ -66,6 +91,28 @@ const NewGroupModal = ({ open, onClose }: Props) => {
           }}
         >
           create
+        </Button>
+        <h3 style={{ margin: 4, marginTop: 16 }}>$ join a group</h3>
+        <div style={{ margin: 4 }}>group id</div>
+        <TextField
+          placeholder="ex: sldkjfasldkjlasdkjflkj"
+          style={{ width: "570px" }}
+          value={groupId}
+          onChange={(e) => setGroupId(e.target.value)}
+        />
+
+        <Button
+          style={{ width: "570px", marginTop: 16 }}
+          variant="outlined"
+          onClick={() => {
+            if (groupId.length > 0) {
+              onJoinGroup(groupId);
+            } else {
+              alert("group id cannot be empty");
+            }
+          }}
+        >
+          join
         </Button>
       </div>
     </GenericModal>

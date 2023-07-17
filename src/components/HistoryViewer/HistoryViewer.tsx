@@ -69,11 +69,18 @@ const HistoryViewer = ({
               onOpenNewGroupModal();
             }}
           >
-            <div style={{ margin: 4, fontSize: "14px" }}>+ new group</div>
+            <div style={{ margin: 4, fontSize: "14px" }}>
+              + create or join a group
+            </div>
           </div>
 
           {(userGroupList.group_ids || []).map((groupId) => (
-            <HistoryViewerGroup groupId={groupId} />
+            <HistoryViewerGroup
+              groupId={groupId}
+              setTreeId={setTreeId}
+              setGroupId={setGroupId}
+              onClose={onClose}
+            />
           ))}
         </div>
       </div>

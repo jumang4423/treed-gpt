@@ -1,4 +1,8 @@
+// @ts-nocheck
+
 import { useCallback, useEffect, useState } from "react";
+import { GroupsState } from "./recoil/groups";
+import { useRecoilValue } from "recoil";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -27,7 +31,9 @@ import {
 } from "./helpers/inits";
 import SettingModal from "./components/SettingModal";
 import NewGroupModal from "./components/NewGroupModal";
-
+import { Db } from "./helpers/firebase";
+import { ref, get, onValue, set } from "firebase/database";
+import { Tsunami } from "@mui/icons-material";
 // besed on current location of node id, roll back the edges then make conversation histories.
 // node.data.label is ai response, edge.label is user input.
 const trackChatHistoriesFromTree = (
@@ -58,22 +64,57 @@ const trackChatHistoriesFromTree = (
   return histories.reverse();
 };
 
+const onCleanTree = (treeD: Tree): Tree => {
+  const nodes = treeD.nodes;
+  // remove selected field from nodes
+  const newNodes = nodes.map((node: any) => {
+    const newNode = structuredClone(node);
+    delete newNode.selected;
+    return newNode;
+  });
+
+  return {
+    id: treeD.id,
+    nodes: newNodes,
+    edges: treeD.edges,
+  };
+};
+
+const onArcTree = (tree: Tree, selectedNodeId: string): Tree => {
+  const treeD = structuredClone(tree);
+  const nodes = treeD.nodes || [];
+  const newNodes = nodes.map((node) => {
+    const newNode = structuredClone(node);
+    newNode.selected = newNode.id === selectedNodeId;
+    return newNode;
+  });
+
+  return {
+    id: treeD.id,
+    nodes: newNodes,
+    edges: treeD.edges || [],
+  };
+};
+
 const App = () => {
   // modals
   const [isSettingModalOpen, setIsSettingModalOpen] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
-  /*  */
+  // local states
   const [GroupId, setGroupId] = useState<string | undefined>(undefined);
   const [TreeId, setTreeId] = useState<string | undefined>(undefined);
   const [nodes, setNodes, onNodesChange] = useNodesState(InitialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(InitialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // ui state
   const [promptStr, setPromptStr] = useState<string>("");
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [settingsObj, setSettingsObj] = useState<SettingsType>(
     JSON.parse(localStorage.getItem("settings") || InitSettingsObj)
   );
+  // recoild state
+  const groupsState = useRecoilValue(GroupsState);
 
   const onConnect = useCallback(
     (params: any) => {
@@ -81,6 +122,21 @@ const App = () => {
     },
     [setEdges]
   );
+
+  const onUpdateTreeDiff = async () => {
+    const cleanedTree = onCleanTree({ id: TreeId, nodes, edges });
+    const treeRef = ref(Db, `groups/${GroupId}/trees/`);
+    const treeSnap = await get(treeRef);
+    const trees = structuredClone(treeSnap.val());
+    const newTrees = trees.map((tree: any) => {
+      if (tree.id === TreeId) {
+        return cleanedTree;
+      } else {
+        return tree;
+      }
+    });
+    set(treeRef, newTrees);
+  };
 
   const handleSubmit = async (e: { target: { value: string } }) => {
     if (e.target.value === "") return;
@@ -147,12 +203,6 @@ const App = () => {
         return newEdges;
       });
       setNodes((nds) => [...nds, newNode]);
-
-      // update tree History
-      updateTreeHistory(
-        { nodes: [...nodes, newNode], edges: [...edges, newEdge] },
-        TreeId
-      );
     } catch (e) {
       alert(e);
       setIsThinking(false);
@@ -163,43 +213,8 @@ const App = () => {
     setPromptStr("");
   };
 
-  // add node+edge to the tree
-  const updateTreeHistory = (thisTree: Tree, thisTreeId: string) => {
-    const treeHistory = JSON.parse(
-      localStorage.getItem("treeHistory") || "[]"
-    ) as HistoryTrees;
-
-    // find if the tree is already in the history
-    const isAlreadyInHistory = treeHistory.find(
-      (tree) => tree.id === thisTreeId
-    ) as Tree;
-
-    if (isAlreadyInHistory) {
-      const newTree = {
-        id: thisTreeId,
-        nodes: thisTree.nodes,
-        edges: thisTree.edges,
-      };
-      const newTreeHistory = treeHistory.map((tree) => {
-        if (tree.id === thisTreeId) {
-          return newTree;
-        } else {
-          return tree;
-        }
-      });
-      localStorage.setItem("treeHistory", JSON.stringify(newTreeHistory));
-    } else {
-      const newTree = {
-        id: thisTreeId,
-        nodes: thisTree.nodes,
-        edges: thisTree.edges,
-      };
-      const newTreeHistory = [...treeHistory, newTree];
-      localStorage.setItem("treeHistory", JSON.stringify(newTreeHistory));
-    }
-  };
-
   useEffect(() => {
+    if (!TreeId) return;
     // find selected Nodes
     const selectedNodes = nodes.filter((n) => n.selected);
     if (selectedNodes.length === 1) {
@@ -207,6 +222,9 @@ const App = () => {
     } else {
       setSelectedNodeId(null);
     }
+
+    // update the tree diff
+    onUpdateTreeDiff();
   }, [nodes]);
 
   // if login user is not set, open login screen
@@ -215,6 +233,19 @@ const App = () => {
       window.location.reload();
     }
   }, [localStorage.getItem("uid")]);
+
+  // this will be triggered when GroupId or TreeId, or someone changed the tree.
+  useEffect(() => {
+    if (!GroupId || !TreeId) return;
+    // hope so
+    const watchingTree: Tree = groupsState[GroupId].trees.find(
+      (tree) => tree.id === TreeId
+    ) as Tree;
+    // with selected field
+    const arcTree = onArcTree(watchingTree, selectedNodeId || "");
+    setEdges(arcTree.edges);
+    setNodes(arcTree.nodes);
+  }, [groupsState, GroupId, TreeId]);
 
   return (
     <div
