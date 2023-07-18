@@ -49,6 +49,11 @@ const NewGroupModal = ({ open, onClose }: Props) => {
     const userRef = ref(Db, `users/${localStorage.getItem("uid")}`);
     const userSnap = await get(userRef);
     const user: User = userSnap.val();
+    // if duplicate group id, return
+    if (user.group_ids?.includes(groupId)) {
+      alert("already in group");
+      return;
+    }
     user.group_ids = [...(user.group_ids || []), groupId];
     await set(userRef, user);
     setGroupId("");

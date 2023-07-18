@@ -140,7 +140,10 @@ const App = () => {
 
   const handleSubmit = async (e: { target: { value: string } }) => {
     if (e.target.value === "") return;
-    if (selectedNodeId === null) return;
+    if (selectedNodeId === null) {
+      alert("select on a node to ask AI a question.");
+      return;
+    }
     if (settingsObj.OpenAI.apiKey === "") {
       alert("Please set OpenAI API key in settings.");
       return;

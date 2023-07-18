@@ -118,8 +118,9 @@ const HistoryViewerGroup = ({
           }}
           onClick={() => {
             // copy group id to clipboard
-            navigator.clipboard.writeText(groupId);
-            alert("copied!: " + groupId);
+            navigator.clipboard.writeText(groupId).then(() => {
+              alert("Copied group id to clipboard!");
+            });
           }}
         >
           <div style={{ margin: 4, fontSize: "14px" }}>copy group id </div>
