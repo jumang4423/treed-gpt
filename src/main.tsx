@@ -5,6 +5,7 @@ import "./index.css";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { RecoilRoot } from "recoil";
 import { lightGreen, yellow } from "@mui/material/colors";
+import ReactFlow, { ReactFlowProvider } from "reactflow";
 
 const switchTheme = createTheme({
   palette: {
@@ -26,12 +27,14 @@ const switchTheme = createTheme({
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <RecoilRoot>
-    <ThemeProvider theme={switchTheme}>
-      <link
-        href="https://pvinis.github.io/iosevka-webfont/3.4.1/iosevka.css"
-        rel="stylesheet"
-      />
-      <Auth />
-    </ThemeProvider>
+    <ReactFlowProvider>
+      <ThemeProvider theme={switchTheme}>
+        <link
+          href="https://pvinis.github.io/iosevka-webfont/3.4.1/iosevka.css"
+          rel="stylesheet"
+        />
+        <Auth />
+      </ThemeProvider>
+    </ReactFlowProvider>
   </RecoilRoot>
 );

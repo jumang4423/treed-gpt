@@ -6,6 +6,7 @@ import { useRecoilValue } from "recoil";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
+  useReactFlow,
   addEdge,
   Background,
   Panel,
@@ -17,12 +18,17 @@ import Button from "@mui/material/Button";
 import HistoryIcon from "@mui/icons-material/History";
 import LinearProgress from "@mui/material/LinearProgress";
 import SettingsIcon from "@mui/icons-material/Settings";
+import SearchIcon from "@mui/icons-material/Search";
 import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
 import { Configuration, OpenAIApi } from "openai";
 import { Gen16lenId } from "./helpers/genId";
-import { OpenAIMessage, GPT4_MODEL_STR } from "./helpers/openai";
-import { Tree, HistoryTrees } from "./helpers/tree";
+import {
+  OpenAIMessage,
+  GPT4_MODEL_STR,
+  EMBEDDING_MODEL_STR,
+} from "./helpers/openai";
+import { Tree } from "./helpers/tree";
 import {
   SettingsType,
   InitSettingsObj,
@@ -31,6 +37,7 @@ import {
 } from "./helpers/inits";
 import SettingModal from "./components/SettingModal";
 import NewGroupModal from "./components/NewGroupModal";
+import SearchModal from "./components/SearchModal";
 import { Db } from "./helpers/firebase";
 import { ref, get, onValue, set } from "firebase/database";
 import { Tsunami } from "@mui/icons-material";
@@ -96,11 +103,31 @@ const onArcTree = (tree: Tree, selectedNodeId: string): Tree => {
   };
 };
 
+// add embedding to realtime db
+const addEmbedding = async (
+  treeId: string,
+  node_id: string,
+  content: string,
+  openaiObj: OpenAIApi
+) => {
+  const result = await openaiObj.createEmbedding({
+    input: content,
+    model: EMBEDDING_MODEL_STR,
+  });
+  const embedding: Array<number> = result.data.data[0].embedding;
+  const treeEmbsRef = ref(Db, `embeddings/${treeId}/${node_id}`);
+  await set(treeEmbsRef, embedding);
+
+  // cache to local storage
+  localStorage.setItem(`${treeId}-${node_id}`, JSON.stringify(embedding));
+};
+
 const App = () => {
   // modals
   const [isSettingModalOpen, setIsSettingModalOpen] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   // local states
   const [GroupId, setGroupId] = useState<string | undefined>(undefined);
   const [TreeId, setTreeId] = useState<string | undefined>(undefined);
@@ -113,6 +140,7 @@ const App = () => {
   const [settingsObj, setSettingsObj] = useState<SettingsType>(
     JSON.parse(localStorage.getItem("settings") || InitSettingsObj)
   );
+  const { setCenter } = useReactFlow();
   // recoild state
   const groupsState = useRecoilValue(GroupsState);
 
@@ -201,6 +229,10 @@ const App = () => {
         type: "userQuestion",
       };
 
+      // subscribe embedding
+      await addEmbedding(TreeId, newNode.id, ai_str, openai);
+
+      // update state
       setEdges((eds) => {
         const newEdges = addEdge(newEdge, eds);
         return newEdges;
@@ -297,6 +329,16 @@ const App = () => {
           </Button>
           <Button
             style={{
+              width: "40px",
+              marginLeft: "8px",
+              height: "40px",
+            }}
+            onClick={() => setIsSearchModalOpen(true)}
+          >
+            <SearchIcon />
+          </Button>
+          <Button
+            style={{
               margin: "0px",
               width: "40px",
             }}
@@ -390,6 +432,14 @@ const App = () => {
         setTreeId={setTreeId}
         setGroupId={setGroupId}
         onOpenNewGroupModal={() => setIsNewGroupModalOpen(true)}
+      />
+      <SearchModal
+        open={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        treeId={TreeId}
+        treeNodes={nodes}
+        setSelectNodeId={setSelectedNodeId}
+        setCenter={setCenter}
       />
     </div>
   );
