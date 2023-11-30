@@ -6,7 +6,6 @@ import { useRecoilValue } from "recoil";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
-  useReactFlow,
   addEdge,
   Background,
   Panel,
@@ -18,18 +17,12 @@ import Button from "@mui/material/Button";
 import HistoryIcon from "@mui/icons-material/History";
 import LinearProgress from "@mui/material/LinearProgress";
 import SettingsIcon from "@mui/icons-material/Settings";
-import SearchIcon from "@mui/icons-material/Search";
 import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
 import { Configuration, OpenAIApi } from "openai";
 import { Gen16lenId } from "./helpers/genId";
-import {
-  OpenAIMessage,
-  GPT4_MODEL_STR,
-  EMBEDDING_MODEL_STR,
-  GPT4_VISION_MODEL_STR,
-} from "./helpers/openai";
-import { Tree } from "./helpers/tree";
+import { OpenAIMessage, GPT4_MODEL_STR } from "./helpers/openai";
+import { Tree, HistoryTrees } from "./helpers/tree";
 import {
   SettingsType,
   InitSettingsObj,
@@ -38,10 +31,11 @@ import {
 } from "./helpers/inits";
 import SettingModal from "./components/SettingModal";
 import NewGroupModal from "./components/NewGroupModal";
-import SearchModal from "./components/SearchModal";
 import { Db } from "./helpers/firebase";
-import { ref, get, set } from "firebase/database";
-import UploadImgButton from "./components/UploadImgButton";
+import { ref, get, onValue, set } from "firebase/database";
+import { Tsunami } from "@mui/icons-material";
+// besed on current location of node id, roll back the edges then make conversation histories.
+// node.data.label is ai response, edge.label is user input.
 const trackChatHistoriesFromTree = (
   tree: Tree,
   curId: string,
@@ -58,24 +52,9 @@ const trackChatHistoriesFromTree = (
       });
     }
     if (curEdge) {
-      const contentArr = [];
-      console.log(curEdge);
-      if (curEdge.data?.image_url) {
-        contentArr.push({
-          type: "image_url",
-          image_url: {
-            url: curEdge.data?.image_url,
-            detail: "low",
-          },
-        });
-      }
-      contentArr.push({
-        type: "text",
-        text: curEdge.label || "uh huh.",
-      });
       histories.push({
-        role: "assistant",
-        content: contentArr,
+        role: "user",
+        content: curEdge.label || "ignore this user message.",
       });
     }
     curNode = tree.nodes.find((node: any) => node.id === curEdge?.source);
@@ -117,45 +96,23 @@ const onArcTree = (tree: Tree, selectedNodeId: string): Tree => {
   };
 };
 
-// add embedding to realtime db
-const addEmbedding = async (
-  treeId: string,
-  node_id: string,
-  content: string,
-  openaiObj: OpenAIApi
-) => {
-  const result = await openaiObj.createEmbedding({
-    input: content,
-    model: EMBEDDING_MODEL_STR,
-  });
-  const embedding: Array<number> = result.data.data[0].embedding;
-  const treeEmbsRef = ref(Db, `embeddings/${treeId}/${node_id}`);
-  await set(treeEmbsRef, embedding);
-
-  // cache to local storage
-  localStorage.setItem(`${treeId}-${node_id}`, JSON.stringify(embedding));
-};
-
 const App = () => {
   // modals
   const [isSettingModalOpen, setIsSettingModalOpen] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   // local states
   const [GroupId, setGroupId] = useState<string | undefined>(undefined);
   const [TreeId, setTreeId] = useState<string | undefined>(undefined);
   const [nodes, setNodes, onNodesChange] = useNodesState(InitialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(InitialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [img_url, setImgUrl] = useState<string | null>(null);
   // ui state
   const [promptStr, setPromptStr] = useState<string>("");
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [settingsObj, setSettingsObj] = useState<SettingsType>(
     JSON.parse(localStorage.getItem("settings") || InitSettingsObj)
   );
-  const { setCenter } = useReactFlow();
   // recoild state
   const groupsState = useRecoilValue(GroupsState);
 
@@ -207,26 +164,12 @@ const App = () => {
         ? settingsObj.historyMaxLen
         : settingsObj.historyMaxLen * 2
     );
-    const newUserMsg = { role: "user", content: [] };
-    if (img_url) {
-      newUserMsg.content.push({
-        type: "image_url",
-        image_url: {
-          url: img_url,
-          detail: "high",
-        },
-      });
-    }
-    newUserMsg.content.push({
-      type: "text",
-      text: e.target.value,
-    });
+    const newUserMsg = { role: "user", content: e.target.value };
     messages.push(systemMsg, ...historiesFromTree, newUserMsg);
     try {
       const response = await openai.createChatCompletion({
         model: settingsObj.OpenAI.engine,
         messages,
-        max_tokens: 4096,
       });
       const ai_str = response.data.choices[0].message.content;
       const selected_node_position = nodes.find(
@@ -253,21 +196,11 @@ const App = () => {
         source: selectedNodeId,
         target: newNode.id,
         label: e.target.value,
-        data: {
-          label: e.target.value,
-        },
+        data: { label: e.target.value },
         animated: true,
         type: "userQuestion",
       };
-      // if img_url is set, add it to the edge
-      if (img_url) {
-        newEdge.data.image_url = img_url;
-      }
 
-      // subscribe embedding
-      await addEmbedding(TreeId, newNode.id, ai_str, openai);
-
-      // update state
       setEdges((eds) => {
         const newEdges = addEdge(newEdge, eds);
         return newEdges;
@@ -280,7 +213,6 @@ const App = () => {
     }
 
     setIsThinking(false);
-    setImgUrl(null);
     setPromptStr("");
   };
 
@@ -365,16 +297,6 @@ const App = () => {
           </Button>
           <Button
             style={{
-              width: "40px",
-              marginLeft: "8px",
-              height: "40px",
-            }}
-            onClick={() => setIsSearchModalOpen(true)}
-          >
-            <SearchIcon />
-          </Button>
-          <Button
-            style={{
               margin: "0px",
               width: "40px",
             }}
@@ -405,7 +327,7 @@ const App = () => {
           style={{
             height: isThinking ? 100 : 160,
             margin: 0,
-            marginBottom: 16,
+            marginBottom: 8,
             padding: 8,
             width: 640,
             backgroundColor: "white",
@@ -413,26 +335,8 @@ const App = () => {
           }}
           hidden={!TreeId}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              margin: 10,
-              alignSelf: "center",
-            }}
-          >
-            🌈 treed-gpt console
-            <div
-              style={{
-                marginLeft: "16px",
-                display:
-                  settingsObj.OpenAI.engine === GPT4_VISION_MODEL_STR
-                    ? "flex"
-                    : "none",
-              }}
-            >
-              <UploadImgButton imageUrl={img_url} setImgUrl={setImgUrl} />
-            </div>
+          <div style={{ margin: 10, alignSelf: "center" }}>
+            $ treed-gpt console
           </div>
           {!isThinking && (
             <div
@@ -486,14 +390,6 @@ const App = () => {
         setTreeId={setTreeId}
         setGroupId={setGroupId}
         onOpenNewGroupModal={() => setIsNewGroupModalOpen(true)}
-      />
-      <SearchModal
-        open={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-        treeId={TreeId}
-        treeNodes={nodes}
-        setSelectNodeId={setSelectedNodeId}
-        setCenter={setCenter}
       />
     </div>
   );

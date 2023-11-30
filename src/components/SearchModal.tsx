@@ -100,11 +100,15 @@ const SearchModal = ({
       return b.similarity - a.similarity;
     });
     const mostSimilar = sortedSimilarities[0];
-
     // get position of most similar node
     const similarNode = treeNodes.find(
       (node: any) => node.id === mostSimilar.id
     );
+    if (!similarNode) {
+      alert("error finding similar node");
+      setIsLoading(false);
+      return;
+    }
     const nodeWidth = similarNode!.style.width;
     setCenter(
       similarNode!.position.x + nodeWidth / 2,

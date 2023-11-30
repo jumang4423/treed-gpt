@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 const firebaseConfig = {
   apiKey: "AIzaSyAtFDSsTJ8S3n8Y4baSfKMCVFcQKD3MMo4",
   authDomain: "treed-gpt.firebaseapp.com",
@@ -16,3 +17,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const Db = getDatabase(app);
 export const Fauth = getAuth(app);
+export const Storage = getStorage(app);

@@ -20,6 +20,7 @@ const CustomEdge: FC<EdgeProps> = ({
     targetY,
     targetPosition,
   });
+  const image_url: string | null = data.image_url;
 
   return (
     <>
@@ -32,14 +33,22 @@ const CustomEdge: FC<EdgeProps> = ({
             padding: 4,
             maxWidth: 300,
             borderRadius: 5,
-            fontSize: 8,
+            fontSize: 10,
             fontFamily: "Iosevka",
             wordBreak: "break-all",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
+            alignItems: "center",
           }}
         >
-          {data.label}
+          {image_url && (
+            <img
+              src={image_url}
+              style={{ width: "48px", marginRight: "8px" }}
+              onClick={() => window.open(image_url, "_blank")}
+            />
+          )}
+          <div>{data.label}</div>
         </div>
       </EdgeLabelRenderer>
     </>
