@@ -1,4 +1,4 @@
-import { GPT4_VISION_MODEL_STR } from "./openai";
+import { GPT4O_MODEL_STR } from "./openai";
 
 export type SettingsType = {
   OpenAI: {
@@ -12,7 +12,7 @@ export type SettingsType = {
 export const InitSettingsObj = JSON.stringify({
   OpenAI: {
     apiKey: "",
-    engine: GPT4_VISION_MODEL_STR,
+    engine: GPT4O_MODEL_STR,
   },
   systemPrompt: "you are a ai bot. you answers within 3-4 short sentences.",
   historyMaxLen: 8,

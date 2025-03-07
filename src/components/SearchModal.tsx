@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
-import { Configuration, OpenAIApi } from "openai";
-import { Tree } from "../helpers/tree";
 import GenericModal from "./GenericModal";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
+import LinearProgress from "@mui/material/LinearProgress";
 import { Db } from "../helpers/firebase";
 import { ref, get, onValue, set } from "firebase/database";
+// @ts-ignore
+import { OpenAI } from "openai";
 import { EMBEDDING_MODEL_STR } from "../helpers/openai";
 
 interface Props {
@@ -39,133 +40,160 @@ const SearchModal = ({
 }: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const onSearch = async () => {
-    setIsLoading(true);
-    // create OpenAI instance
-    const settingsObj = JSON.parse(localStorage.getItem("settings") || "{}");
-    if (settingsObj === null) {
-      alert("please set your OpenAI API key in settings");
-      return;
-    }
-    const configuration = new Configuration({
-      apiKey: settingsObj.OpenAI!.apiKey!,
-    });
-    const openaiObj = new OpenAIApi(configuration);
+    try {
+      setIsLoading(true);
 
-    // get all nodes embedding
-    const embs: { id: string; embedding: Array<number> }[] = [];
-    for (const node of treeNodes) {
-      const node_id = node.id;
-      const emb = localStorage.getItem(`${treeId}-${node_id}`);
-      if (emb) {
-        // from cache
-        embs.push({
-          id: node_id,
-          embedding: JSON.parse(emb),
-        });
-      } else {
-        // from db
-        const embRef = ref(Db, `embeddings/${treeId}/${node_id}`);
-        const embSnap = await get(embRef);
-        const embVal = embSnap.val();
-        if (embVal) {
+      // Get settings from localStorage
+      const settingsObj = JSON.parse(localStorage.getItem("settings") || "{}");
+      if (!settingsObj?.OpenAI?.apiKey) {
+        alert("Please set your OpenAI API key in settings");
+        setIsLoading(false);
+        return;
+      }
+
+      // @ts-ignore
+      const openaiClient = new OpenAI({
+        apiKey: settingsObj.OpenAI.apiKey,
+        dangerouslyAllowBrowser: true,
+      });
+
+      // get all nodes embedding
+      const embs = [];
+      for (const node of treeNodes) {
+        const node_id = node.id;
+        // check if embedding exists in local storage
+        const embCache = localStorage.getItem(`${treeId}-${node_id}`);
+        if (embCache) {
+          // from cache
           embs.push({
             id: node_id,
-            embedding: embVal,
+            embedding: JSON.parse(embCache),
           });
+        } else {
+          // from db
+          const embRef = ref(Db, `embeddings/${treeId}/${node_id}`);
+          const embSnap = await get(embRef);
+          const embVal = embSnap.val();
+          if (embVal) {
+            embs.push({
+              id: node_id,
+              embedding: embVal,
+            });
+          }
         }
       }
-    }
-    // get query embedding
-    const result = await openaiObj.createEmbedding({
-      input: searchQuery,
-      model: EMBEDDING_MODEL_STR,
-    });
-    const embedding: Array<number> = result.data.data[0].embedding;
-    const treeEmbsRef = ref(Db, `embeddings/${treeId}`);
-    const treeEmbsSnap = await get(treeEmbsRef);
-    const treeEmbs = structuredClone(treeEmbsSnap.val());
-    if (!treeEmbs) {
-      return null;
-    }
-    const treeEmbsArr = Object.entries(treeEmbs);
-    const similarities = treeEmbsArr.map(([node_id, emb]: any) => {
-      return {
-        id: node_id,
-        similarity: cosineSimilarity(emb, embedding),
-      };
-    });
-    const sortedSimilarities = similarities.sort((a, b) => {
-      return b.similarity - a.similarity;
-    });
-    const mostSimilar = sortedSimilarities[0];
-    // get position of most similar node
-    const similarNode = treeNodes.find(
-      (node: any) => node.id === mostSimilar.id
-    );
-    if (!similarNode) {
-      alert("error finding similar node");
-      setIsLoading(false);
-      return;
-    }
-    const nodeWidth = similarNode!.style.width;
-    setCenter(
-      similarNode!.position.x + nodeWidth / 2,
-      similarNode!.position.y + 10,
-      {
-        duration: 500,
-        zoom: 2,
+
+      // get query embedding
+      const result = await openaiClient.embeddings.create({
+        input: searchQuery,
+        model: EMBEDDING_MODEL_STR,
+      });
+      const embedding = result.data[0].embedding;
+
+      // calculate similarity scores
+      const similarities = [];
+      for (const emb of embs) {
+        const similarity = cosineSimilarity(embedding, emb.embedding);
+        similarities.push({
+          id: emb.id,
+          similarity,
+        });
       }
-    );
-    setSelectNodeId(mostSimilar.id);
-    setSearchQuery("");
-    setIsLoading(false);
-    onClose();
+
+      // sort by similarity
+      similarities.sort((a, b) => b.similarity - a.similarity);
+
+      // get top 3 results
+      const topResults = similarities.slice(0, 3);
+
+      // find nodes
+      const resultNodes = [];
+      for (const result of topResults) {
+        const node = treeNodes.find((n: any) => n.id === result.id);
+        if (node) {
+          resultNodes.push(node);
+        }
+      }
+
+      setSearchResults(resultNodes);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error in search:", error);
+      setIsLoading(false);
+    }
   };
 
   return (
-    <GenericModal
-      open={open}
-      handleClose={onClose}
-      title="search node relative to query"
-    >
-      {isLoading && (
-        <div style={{ width: "570px", margin: 16 }}>loading...</div>
-      )}
-      {!isLoading && (
-        <div
-          style={{
-            width: "640px",
-            padding: "0px 16px 32px 16px",
-            fontFamily: "Iosevka",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div style={{ margin: 4 }}>search query</div>
+    <GenericModal open={open} handleClose={onClose} title="search">
+      <div
+        style={{
+          width: "640px",
+          padding: "0px 16px 32px 16px",
+          fontFamily: "Iosevka",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center" }}>
           <TextField
-            placeholder="ex: why is the sky blue?"
-            style={{ width: "570px" }}
+            placeholder="search query"
+            style={{ width: "400px", marginRight: "16px" }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
-          <Button
-            style={{ width: "570px", marginTop: 16 }}
-            variant="outlined"
-            onClick={() => {
-              if (searchQuery.length > 0) {
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
                 onSearch();
-              } else {
-                alert("please enter a search query");
               }
             }}
-          >
-            search
+          />
+          <Button variant="outlined" onClick={onSearch} disabled={isLoading}>
+            Search
           </Button>
         </div>
-      )}
+
+        {isLoading && <LinearProgress style={{ marginTop: "16px" }} />}
+
+        {searchResults.length > 0 && !isLoading && (
+          <div style={{ marginTop: "16px" }}>
+            <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
+              Results:
+            </div>
+            {searchResults.map((result, index) => (
+              <div
+                key={result.id}
+                style={{
+                  padding: "8px",
+                  marginBottom: "8px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  // Navigate to the selected node
+                  const nodeWidth = result.style.width || 0;
+                  setCenter(
+                    result.position.x + nodeWidth / 2,
+                    result.position.y + 10,
+                    {
+                      duration: 500,
+                      zoom: 2,
+                    }
+                  );
+                  setSelectNodeId(result.id);
+                  setSearchQuery("");
+                  onClose();
+                }}
+              >
+                <div style={{ fontWeight: "bold" }}>#{index + 1}</div>
+                <div>{result.data.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </GenericModal>
   );
 };

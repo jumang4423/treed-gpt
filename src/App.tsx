@@ -21,13 +21,12 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import SearchIcon from "@mui/icons-material/Search";
 import UserQuestionEdge from "./edge/UserQuestionEdge";
 import "reactflow/dist/style.css";
-import { Configuration, OpenAIApi } from "openai";
+import { OpenAI } from "openai";
 import { Gen16lenId } from "./helpers/genId";
 import {
   OpenAIMessage,
-  GPT4_MODEL_STR,
   EMBEDDING_MODEL_STR,
-  GPT4_VISION_MODEL_STR,
+  GPT4O_MODEL_STR,
 } from "./helpers/openai";
 import { Tree } from "./helpers/tree";
 import {
@@ -122,18 +121,22 @@ const addEmbedding = async (
   treeId: string,
   node_id: string,
   content: string,
-  openaiObj: OpenAIApi
+  openaiClient
 ) => {
-  const result = await openaiObj.createEmbedding({
-    input: content,
-    model: EMBEDDING_MODEL_STR,
-  });
-  const embedding: Array<number> = result.data.data[0].embedding;
-  const treeEmbsRef = ref(Db, `embeddings/${treeId}/${node_id}`);
-  await set(treeEmbsRef, embedding);
+  try {
+    const result = await openaiClient.embeddings.create({
+      input: content,
+      model: EMBEDDING_MODEL_STR,
+    });
+    const embedding = result.data[0].embedding;
+    const treeEmbsRef = ref(Db, `embeddings/${treeId}/${node_id}`);
+    await set(treeEmbsRef, embedding);
 
-  // cache to local storage
-  localStorage.setItem(`${treeId}-${node_id}`, JSON.stringify(embedding));
+    // cache to local storage
+    localStorage.setItem(`${treeId}-${node_id}`, JSON.stringify(embedding));
+  } catch (error) {
+    console.error("Error creating embedding:", error);
+  }
 };
 
 const App = () => {
@@ -192,43 +195,45 @@ const App = () => {
       return;
     }
     setIsThinking(true);
-    // create OpenAI instance
-    const configuration = new Configuration({
-      apiKey: settingsObj.OpenAI.apiKey,
-    });
-    const openai = new OpenAIApi(configuration);
-    // gpt4 inference
-    const messages = [];
-    const systemMsg = { role: "system", content: settingsObj.systemPrompt };
-    const historiesFromTree = trackChatHistoriesFromTree(
-      { nodes, edges },
-      selectedNodeId,
-      settingsObj.OpenAI.engine === GPT4_MODEL_STR
-        ? settingsObj.historyMaxLen
-        : settingsObj.historyMaxLen * 2
-    );
-    const newUserMsg = { role: "user", content: [] };
-    if (img_url) {
-      newUserMsg.content.push({
-        type: "image_url",
-        image_url: {
-          url: img_url,
-          detail: "high",
-        },
-      });
-    }
-    newUserMsg.content.push({
-      type: "text",
-      text: e.target.value,
-    });
-    messages.push(systemMsg, ...historiesFromTree, newUserMsg);
+
     try {
-      const response = await openai.createChatCompletion({
+      // @ts-ignore
+      const openaiClient = new OpenAI({
+        apiKey: settingsObj.OpenAI.apiKey,
+        dangerouslyAllowBrowser: true,
+      });
+
+      // gpt4 inference
+      const messages = [];
+      const systemMsg = { role: "system", content: settingsObj.systemPrompt };
+      const historiesFromTree = trackChatHistoriesFromTree(
+        { nodes, edges },
+        selectedNodeId,
+        settingsObj.historyMaxLen
+      );
+      const newUserMsg = { role: "user", content: [] };
+      if (img_url) {
+        newUserMsg.content.push({
+          type: "image_url",
+          image_url: {
+            url: img_url,
+            detail: "low",
+          },
+        });
+      }
+      newUserMsg.content.push({
+        type: "text",
+        text: e.target.value,
+      });
+      messages.push(systemMsg, ...historiesFromTree, newUserMsg);
+
+      const response = await openaiClient.chat.completions.create({
         model: settingsObj.OpenAI.engine,
         messages,
         max_tokens: 4096,
       });
-      const ai_str = response.data.choices[0].message.content;
+
+      const ai_str = response.choices[0].message.content;
       const selected_node_position = nodes.find(
         (node) => node.id === selectedNodeId
       )?.position;
@@ -265,7 +270,7 @@ const App = () => {
       }
 
       // subscribe embedding
-      await addEmbedding(TreeId, newNode.id, ai_str, openai);
+      await addEmbedding(TreeId, newNode.id, ai_str, openaiClient);
 
       // update state
       setEdges((eds) => {
@@ -273,15 +278,14 @@ const App = () => {
         return newEdges;
       });
       setNodes((nds) => [...nds, newNode]);
-    } catch (e) {
-      alert(e);
-      setIsThinking(false);
-      return;
-    }
 
-    setIsThinking(false);
-    setImgUrl(null);
-    setPromptStr("");
+      setIsThinking(false);
+      setImgUrl(null);
+      setPromptStr("");
+    } catch (error) {
+      console.error("Error submitting question:", error);
+      setIsThinking(false);
+    }
   };
 
   useEffect(() => {
@@ -425,10 +429,7 @@ const App = () => {
             <div
               style={{
                 marginLeft: "16px",
-                display:
-                  settingsObj.OpenAI.engine === GPT4_VISION_MODEL_STR
-                    ? "flex"
-                    : "none",
+                display: "flex",
               }}
             >
               <UploadImgButton imageUrl={img_url} setImgUrl={setImgUrl} />

@@ -4,11 +4,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
-import {
-  GPT3_MODEL_STR,
-  GPT4_MODEL_STR,
-  GPT4_VISION_MODEL_STR,
-} from "../helpers/openai";
+import { GPT4O_MODEL_STR } from "../helpers/openai";
 import { SettingsType } from "../helpers/inits";
 
 interface Props {
@@ -70,9 +66,7 @@ const SettingModal = ({
           }
           style={{ width: "200px" }}
         >
-          <MenuItem value={GPT4_VISION_MODEL_STR}>gpt4 vision</MenuItem>
-          <MenuItem value={GPT4_MODEL_STR}>gpt4</MenuItem>
-          <MenuItem value={GPT3_MODEL_STR}>gpt3.5 turbo 16k</MenuItem>
+          <MenuItem value={GPT4O_MODEL_STR}>gpt-4o</MenuItem>
         </Select>
         <div style={{ margin: 4, marginTop: 16 }}>system prompt</div>
         <TextField
